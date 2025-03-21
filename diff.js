@@ -31,20 +31,42 @@ function removeWaybackElements(doc) {
   }
 }
 
-// --- New: Simple hash function (djb2) for fingerprinting text nodes ---
+// --- Normalize URLs in attributes (href, src, style) ---
+function normalizeURLs(doc) {
+  const regex = /https:\/\/web\.archive\.org\/web\/\d+\/(https?:\/\/[^\s'"]+)/;
+  const elements = doc.querySelectorAll("*");
+  elements.forEach(el => {
+    ["href", "src"].forEach(attr => {
+      if (el.hasAttribute(attr)) {
+        let val = el.getAttribute(attr);
+        const match = regex.exec(val);
+        if (match) {
+          el.setAttribute(attr, match[1]);
+        }
+      }
+    });
+    if (el.hasAttribute("style")) {
+      let styleVal = el.getAttribute("style");
+      styleVal = styleVal.replace(/url\((['"]?)(https:\/\/web\.archive\.org\/web\/\d+\/(https?:\/\/[^\s'")]+))\1\)/g, "url($1$3$1)");
+      el.setAttribute("style", styleVal);
+    }
+  });
+}
+
+// --- Simple hash function (djb2) for fingerprinting text nodes ---
 function hashString(str) {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) + hash) + str.charCodeAt(i);
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash; // 32bit integer
   }
   return hash;
 }
 
-// Use diff_match_patch to compute a smarter, word-level diff.
+// Use diff_match_patch to compute a word-level diff.
 function diffWordsSmart(oldText, newText) {
   const dmp = new diff_match_patch();
-  const delimiter = "\u0001"; // A control character unlikely to appear in text.
+  const delimiter = "\u0001";
   
   const oldTokens = oldText.split(/\s+/);
   const newTokens = newText.split(/\s+/);
@@ -92,7 +114,7 @@ function getTextNodes(doc) {
   return nodes;
 }
 
-// Compute a simple similarity between two strings (fraction of common words).
+// Compute a simple similarity between two strings.
 function similarity(a, b) {
   const wordsA = a.split(/\s+/).filter(Boolean);
   const wordsB = b.split(/\s+/).filter(Boolean);
@@ -104,15 +126,15 @@ function similarity(a, b) {
   return common / Math.max(wordsA.length, wordsB.length);
 }
 
-// --- New: Build fingerprint list for an array of text nodes ---
+// --- Build fingerprint list for an array of text nodes ---
 function computeNodeFingerprints(nodes) {
   return nodes.map(node => {
     const text = node.textContent.trim();
-    return { node: node, text: text, hash: hashString(text) };
+    return { node: node, text: text, hash: hashString(text), length: text.length };
   });
 }
 
-// --- New: Compute Longest Common Subsequence (LCS) on arrays of numbers ---
+// --- Compute Longest Common Subsequence (LCS) on arrays of numbers ---
 function computeLCS(seq1, seq2) {
   const m = seq1.length, n = seq2.length;
   const dp = new Array(m+1);
@@ -128,7 +150,6 @@ function computeLCS(seq1, seq2) {
       }
     }
   }
-  // Reconstruct common indices
   let i = m, j = n;
   const common = [];
   while (i > 0 && j > 0) {
@@ -145,27 +166,27 @@ function computeLCS(seq1, seq2) {
   return common;
 }
 
-// --- New: Revised diffTextNodes that aligns nodes using hash LCS then falls back to similarity diff ---
+// --- Revised diffTextNodes: aligns nodes using hash LCS then falls back to similarity diff ---
 function diffTextNodesSmart(docArchived, docOriginal) {
+  normalizeURLs(docArchived);
   const archivedNodes = computeNodeFingerprints(getTextNodes(docArchived));
   const originalNodes = computeNodeFingerprints(getTextNodes(docOriginal));
   
   const archivedHashes = archivedNodes.map(item => item.hash);
   const originalHashes = originalNodes.map(item => item.hash);
   
-  // Compute LCS for exact hash matches.
   const lcsMatches = computeLCS(archivedHashes, originalHashes);
   
   let aStart = 0, oStart = 0;
+  let totalArchivedLength = archivedNodes.reduce((acc, item) => acc + item.length, 0);
+  let matchedLength = 0;
   
-  // Process segments between common nodes.
   lcsMatches.forEach(match => {
-    // Process segment before the current match.
     alignSegment(archivedNodes.slice(aStart, match.index1), originalNodes.slice(oStart, match.index2), docArchived, docOriginal);
     
-    // For the matched nodes, if their text isn’t identical (hashes match implies they are identical, but for safety diff anyway)
     const archItem = archivedNodes[match.index1];
     const origItem = originalNodes[match.index2];
+    matchedLength += archItem.length;
     if (archItem.text !== origItem.text) {
       const diffResult = diffWordsSmart(archItem.text, origItem.text);
       replaceNodeWithSpan(archItem.node, docArchived, diffResult.archivedDiff);
@@ -174,12 +195,13 @@ function diffTextNodesSmart(docArchived, docOriginal) {
     aStart = match.index1 + 1;
     oStart = match.index2 + 1;
   });
-  
-  // Process any trailing segments.
   alignSegment(archivedNodes.slice(aStart), originalNodes.slice(oStart), docArchived, docOriginal);
+  
+  const similarityScore = totalArchivedLength > 0 ? Math.round((matchedLength / totalArchivedLength) * 100) : 0;
+  document.getElementById("globalScore").innerText = "Global Similarity Score: " + similarityScore + "%";
 }
 
-// Helper: align a segment of nodes using similarity.
+// Helper: Align a segment of nodes using similarity.
 function alignSegment(archSegment, origSegment, docArchived, docOriginal) {
   let i = 0, j = 0;
   while (i < archSegment.length && j < origSegment.length) {
@@ -218,6 +240,79 @@ function replaceNodeWithSpan(node, doc, html) {
   node.parentNode.replaceChild(span, node);
 }
 
+// --- New: Diff Images ---
+function diffImages(docArchived, docOriginal) {
+  const archivedImages = Array.from(docArchived.querySelectorAll('img'));
+  const originalImages = Array.from(docOriginal.querySelectorAll('img'));
+  
+  const normalizeSrc = src => {
+    const regex = /https:\/\/web\.archive\.org\/web\/\d+\/(https?:\/\/[^\s'"]+)/;
+    const match = regex.exec(src);
+    return match ? match[1] : src;
+  };
+
+  const archivedSrcs = archivedImages.map(img => normalizeSrc(img.getAttribute("src")));
+  const originalSrcs = originalImages.map(img => normalizeSrc(img.getAttribute("src")));
+  
+  archivedImages.forEach(img => {
+    const src = normalizeSrc(img.getAttribute("src"));
+    if (!originalSrcs.includes(src)) {
+      if (!img.parentElement.classList.contains("removed")) {
+        const wrapper = docArchived.createElement("span");
+        wrapper.classList.add("removed");
+        img.parentNode.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+      }
+    }
+  });
+  
+  originalImages.forEach(img => {
+    const src = normalizeSrc(img.getAttribute("src"));
+    if (!archivedSrcs.includes(src)) {
+      if (!img.parentElement.classList.contains("added")) {
+        const wrapper = docOriginal.createElement("span");
+        wrapper.classList.add("added");
+        img.parentNode.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+      }
+    }
+  });
+}
+
+// --- Compute Meta Properties Diff ---
+function diffMeta(docArchived, docOriginal) {
+  const metaArchived = {};
+  const metaOriginal = {};
+  docArchived.querySelectorAll("meta").forEach(meta => {
+    const key = meta.getAttribute("name") || meta.getAttribute("property");
+    if (key) {
+      metaArchived[key] = meta.getAttribute("content") || "";
+    }
+  });
+  docOriginal.querySelectorAll("meta").forEach(meta => {
+    const key = meta.getAttribute("name") || meta.getAttribute("property");
+    if (key) {
+      metaOriginal[key] = meta.getAttribute("content") || "";
+    }
+  });
+  
+  let html = '<table class="meta-diff table table-bordered table-sm"><thead><tr><th>Meta Property</th><th>Archived</th><th>Current</th></tr></thead><tbody>';
+  const allKeys = new Set([...Object.keys(metaArchived), ...Object.keys(metaOriginal)]);
+  allKeys.forEach(key => {
+    const aVal = metaArchived[key] || "";
+    const oVal = metaOriginal[key] || "";
+    if (aVal === oVal) {
+      html += `<tr><td>${key}</td><td>${aVal}</td><td>${oVal}</td></tr>`;
+    } else {
+      let archivedCell = aVal ? `<span class="diff-archived">${aVal}</span>` : "";
+      let currentCell = oVal ? `<span class="diff-current">${oVal}</span>` : "";
+      html += `<tr><td>${key}</td><td>${archivedCell}</td><td>${currentCell}</td></tr>`;
+    }
+  });
+  html += "</tbody></table>";
+  return html;
+}
+
 // --- Original buildFullHTML function ---
 function buildFullHTML(doc) {
   const cssImports = extractCSS(doc);
@@ -229,7 +324,6 @@ function buildFullHTML(doc) {
         <meta charset="UTF-8">
         ${cssImports}
         <style>
-          /* Diff highlight styles */
           .added { background-color: #e6ffe6; }
           .removed { background-color: #ffe6e6; text-decoration: line-through; }
         </style>
@@ -251,7 +345,7 @@ function extractCSS(doc) {
   return css;
 }
 
-// Main diffing routine: fetch archived and current HTML, parse and process diff.
+// --- Main diffing routine ---
 (function() {
   log("Diff script started.");
   const params = getQueryParams();
@@ -264,10 +358,13 @@ function extractCSS(doc) {
     document.body.innerHTML = "<pre>Error: Missing required URL parameters.</pre>";
     return;
   }
+  
+  // Set URL display in header.
+  document.getElementById("archivedUrlDisplay").innerText = archivedUrl;
+  document.getElementById("originalUrlDisplay").innerText = originalUrl;
 
   Promise.all([
     fetch(archivedUrl).then(r => r.text()),
-    // Retrieve the current page's full HTML (head and body) via content script.
     browser.runtime.sendMessage({ action: "getOriginalContent", tabId: originalTabId })
   ])
   .then(([archivedHTML, originalData]) => {
@@ -279,6 +376,13 @@ function extractCSS(doc) {
     
     removeWaybackElements(docArchived);
     diffTextNodesSmart(docArchived, docOriginal);
+    
+    // Process images diff.
+    diffImages(docArchived, docOriginal);
+    
+    // Compute meta diff and update element.
+    const metaDiffHTML = diffMeta(docArchived, docOriginal);
+    document.getElementById("metaDiff").innerHTML = metaDiffHTML;
     
     const archivedFullHTML = buildFullHTML(docArchived);
     const originalFullHTML = buildFullHTML(docOriginal);

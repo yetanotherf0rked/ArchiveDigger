@@ -3,8 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const autoFetchCheckbox = document.getElementById('autoFetchCheckbox');
   const resultsCountEl = document.getElementById('resultsCount');
   const tableBody = document.querySelector('#resultsTable tbody');
-  const debugContainer = document.getElementById('debugContainer');
-  const toggleLogs = document.getElementById('toggleLogs');
   const resultsInfo = document.getElementById('resultsInfo');
   
   let archiveResults = [];
@@ -12,25 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTabUrl = ""; // will hold the original page URL
   let currentTabId;       // will hold the active tab's id
 
-  // Toggle logs display using clickable text with symbols ▸ and ▾
-  toggleLogs.addEventListener('click', () => {
-    if (debugContainer.style.display === 'none') {
-      debugContainer.style.display = 'block';
-      toggleLogs.innerText = '▾ Hide Logs';
-    } else {
-      debugContainer.style.display = 'none';
-      toggleLogs.innerText = '▸ Show Logs';
-    }
-  });
-  
-  // Log messages only if logs are visible
+  // Simple logging function.
   function log(message) {
-    if (debugContainer.style.display !== 'none') {
-      debugContainer.innerText += message + "\n";
-    }
     console.log("[Popup] " + message);
   }
   
+  // Set initial loading state.
+  resultsCountEl.innerText = "Loading...";
+
   // Load autoFetch setting from storage
   browser.storage.local.get('autoFetch')
     .then(data => {

@@ -17,7 +17,7 @@
     "default_icon": "icons/history.png",
     "default_popup": "popup.html"
   },
-  "content_security_policy": "script-src 'self' https://cdnjs.cloudflare.com 'unsafe-eval'; object-src 'self'",
+  "content_security_policy": "script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-eval'; object-src 'self'",
   "web_accessible_resources": [
     "diff.html",
     "diff.js",
