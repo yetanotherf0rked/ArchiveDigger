@@ -8,20 +8,46 @@
       font-family: Arial, sans-serif;
       margin: 10px;
     }
-    .result {
-      margin: 5px 0;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
     }
-    .service {
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      cursor: pointer;
+      background-color: #f2f2f2;
+      position: relative;
+    }
+    th .sort-arrow {
+      margin-left: 5px;
+      font-size: 0.8em;
+    }
+    #resultsCount {
+      margin-top: 10px;
       font-weight: bold;
     }
-    .date {
-      font-style: italic;
+    #resultsInfo {
+      margin-top: 5px;
     }
+    /* Logs are hidden by default, toggled via clickable text */
     #debugContainer {
       margin-top: 10px;
       font-size: 0.8em;
       color: red;
       white-space: pre-wrap;
+      display: none;
+    }
+    /* Simple clickable text for toggling logs */
+    #toggleLogs {
+      margin-top: 10px;
+      cursor: pointer;
+      color: blue;
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -31,7 +57,20 @@
     <input type="checkbox" id="autoFetchCheckbox" checked>
     Automatic Archive Fetching
   </label>
-  <div id="resultsContainer"></div>
+  <br/>
+  <div id="resultsCount"></div>
+  <div id="resultsInfo"></div>
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th data-column="date">Date <span class="sort-arrow">⇅</span></th>
+        <th data-column="service">Service <span class="sort-arrow">⇅</span></th>
+        <th data-column="statuscode">Status Code <span class="sort-arrow">⇅</span></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div id="toggleLogs">Show Logs</div>
   <div id="debugContainer"></div>
   <script src="popup.js"></script>
 </body>

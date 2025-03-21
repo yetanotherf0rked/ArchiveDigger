@@ -2,12 +2,11 @@
   "manifest_version": 2,
   "name": "Archive Digger",
   "version": "1.0",
-  "description": "Checks if the current page has an entry on archive.today and web.archive.org.",
+  "description": "Checks if the current page has an entry on web.archive.org using the CDX API.",
   "permissions": [
     "tabs",
     "activeTab",
     "storage",
-    "*://archive.today/*",
     "*://web.archive.org/*",
     "*://archive.org/*"
   ],

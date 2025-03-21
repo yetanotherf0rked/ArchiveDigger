@@ -1,65 +1,155 @@
 document.addEventListener('DOMContentLoaded', () => {
-  let autoFetchCheckbox = document.getElementById('autoFetchCheckbox');
-  let debugContainer = document.getElementById('debugContainer');
+  const autoFetchCheckbox = document.getElementById('autoFetchCheckbox');
+  const resultsCountEl = document.getElementById('resultsCount');
+  const tableBody = document.querySelector('#resultsTable tbody');
+  const debugContainer = document.getElementById('debugContainer');
+  const toggleLogs = document.getElementById('toggleLogs');
+  const resultsInfo = document.getElementById('resultsInfo');
+  
+  let archiveResults = [];
+  let displayAll = false; // flag for showing all results
 
-  // Retrieve the saved autoFetch setting (if any)
+  // Toggle logs display using clickable text
+  toggleLogs.addEventListener('click', () => {
+    if (debugContainer.style.display === 'none') {
+      debugContainer.style.display = 'block';
+      toggleLogs.innerText = 'Hide Logs';
+    } else {
+      debugContainer.style.display = 'none';
+      toggleLogs.innerText = 'Show Logs';
+    }
+  });
+  
+  // Log messages only if logs are visible
+  function log(message) {
+    if (debugContainer.style.display !== 'none') {
+      debugContainer.innerText += message + "\n";
+    }
+  }
+  
+  // Load autoFetch setting from storage
   browser.storage.local.get('autoFetch')
     .then(data => {
       if (data.autoFetch === false) {
         autoFetchCheckbox.checked = false;
-        debugContainer.innerText += "autoFetch setting loaded: false\n";
+        log("autoFetch setting loaded: false");
       } else {
-        debugContainer.innerText += "autoFetch setting loaded: true\n";
+        log("autoFetch setting loaded: true");
       }
     })
     .catch(error => {
-      console.error("Error retrieving autoFetch setting:", error);
-      debugContainer.innerText += "Error retrieving autoFetch setting: " + error.message + "\n";
+      log("Error retrieving autoFetch setting: " + error.message);
     });
-
+  
   // Update autoFetch setting when checkbox value changes
   autoFetchCheckbox.addEventListener('change', () => {
-    let value = autoFetchCheckbox.checked;
+    const value = autoFetchCheckbox.checked;
     browser.runtime.sendMessage({ action: "setAutoFetch", value: value })
-      .then(response => {
-        debugContainer.innerText += "AutoFetch setting updated successfully.\n";
+      .then(() => {
+        log("AutoFetch setting updated successfully.");
       })
       .catch(error => {
-        console.error("Error setting autoFetch:", error);
-        debugContainer.innerText += "Error setting autoFetch: " + error.message + "\n";
+        log("Error setting autoFetch: " + error.message);
       });
   });
-
+  
+  // Function to render the results table
+  function renderTable(data) {
+    tableBody.innerHTML = "";
+    let displayData = data;
+    if (!displayAll && data.length > 10) {
+      displayData = data.slice(0, 5).concat([{ ellipsis: true }], data.slice(-5));
+      resultsInfo.innerHTML = 'Displaying 5 oldest and 5 latest results. <span id="showAllLink" style="cursor:pointer; color:blue; text-decoration:underline;">Show All</span>';
+      const showAllLink = document.getElementById('showAllLink');
+      showAllLink.addEventListener('click', () => {
+        displayAll = true;
+        renderTable(data);
+        resultsInfo.innerText = '';
+      });
+    } else {
+      resultsInfo.innerText = '';
+    }
+    
+    displayData.forEach(item => {
+      const row = document.createElement('tr');
+      if (item.ellipsis) {
+        const cell = document.createElement('td');
+        cell.colSpan = 3;
+        cell.style.textAlign = 'center';
+        cell.innerText = '...';
+        row.appendChild(cell);
+      } else {
+        const dateCell = document.createElement('td');
+        // Create an anchor for the date linking to the snapshot URL
+        const link = document.createElement('a');
+        link.href = item.url;
+        link.target = "_blank";
+        link.innerText = item.date;
+        dateCell.appendChild(link);
+        
+        const serviceCell = document.createElement('td');
+        serviceCell.innerText = item.service;
+        const statusCell = document.createElement('td');
+        statusCell.innerText = item.statuscode;
+        row.appendChild(dateCell);
+        row.appendChild(serviceCell);
+        row.appendChild(statusCell);
+      }
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Function to update sort arrow icons in table headers
+  function updateSortArrows(activeColumn, ascending) {
+    document.querySelectorAll('#resultsTable th').forEach(th => {
+      const span = th.querySelector('.sort-arrow');
+      if (th.getAttribute('data-column') === activeColumn) {
+        span.innerText = ascending ? '▲' : '▼';
+      } else {
+        span.innerText = '⇅';
+      }
+    });
+  }
+  
+  // Function to sort archiveResults and re-render the table
+  function sortResults(column, ascending = true) {
+    archiveResults.sort((a, b) => {
+      if (a[column] < b[column]) return ascending ? -1 : 1;
+      if (a[column] > b[column]) return ascending ? 1 : -1;
+      return 0;
+    });
+    updateSortArrows(column, ascending);
+    renderTable(archiveResults);
+  }
+  
+  // Set up table header sorting with clickable headers
+  document.querySelectorAll('#resultsTable th').forEach(th => {
+    let ascending = true;
+    th.addEventListener('click', () => {
+      const column = th.getAttribute('data-column');
+      sortResults(column, ascending);
+      ascending = !ascending;
+    });
+  });
+  
   // Request archive results for the current tab from the background script
   browser.runtime.sendMessage({ action: "getResults" })
     .then(response => {
-      let container = document.getElementById('resultsContainer');
       if (!response || typeof response.results === "undefined") {
-        container.innerText = "Error: No results field in response.";
-        debugContainer.innerText += "Error: No results field in response.\n";
+        resultsCountEl.innerText = "Error: No results field in response.";
+        log("Error: No results field in response.");
         return;
       }
-      let results = response.results;
-      debugContainer.innerText += "Received results: " + JSON.stringify(results) + "\n";
-
-      if (results.length > 0) {
-        // Sort results by date (assuming YYYYMMDDhhmmss format)
-        results.sort((a, b) => a.date.localeCompare(b.date));
-        results.forEach(result => {
-          let div = document.createElement('div');
-          div.className = "result";
-          div.innerHTML = `<span class="service">${result.service}</span> - <span class="date">${result.date}</span> - <a href="${result.url}" target="_blank">View Archive</a>`;
-          container.appendChild(div);
-        });
-      } else {
-        container.innerText = "No archives found.";
-      }
+      archiveResults = response.results;
+      log("Received results: " + JSON.stringify(archiveResults));
+      // Default sort by date
+      archiveResults.sort((a, b) => a.date.localeCompare(b.date));
+      resultsCountEl.innerText = `Total Results Found: ${archiveResults.length}`;
+      renderTable(archiveResults);
     })
     .catch(error => {
-      let container = document.getElementById('resultsContainer');
-      container.innerText = "Error fetching results: " + error.message;
-      debugContainer.innerText += "Error fetching results: " + error.message + "\n";
-      console.error("Error fetching results:", error);
+      resultsCountEl.innerText = "Error fetching results: " + error.message;
+      log("Error fetching results: " + error.message);
     });
 });
 
