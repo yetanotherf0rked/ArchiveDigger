@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Archive Diff</title>
+  <style>
+    /* Basic styling for two iframes side by side */
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      height: 100vh;
+      overflow: hidden;
+    }
+    iframe {
+      width: 50%;
+      height: 100%;
+      border: none;
+      overflow: auto;
+    }
+  </style>
+  <!-- Load diff_match_patch from cdnjs with defer -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js" defer></script>
+  <script src="diff.js" defer></script>
+</head>
+<body>
+  <!-- Left iframe for the archived page; right iframe for the current page -->
+  <iframe id="archivedFrame"></iframe>
+  <iframe id="originalFrame"></iframe>
+</body>
+</html>
+

@@ -1,3 +1,4 @@
+// popup.js
 document.addEventListener('DOMContentLoaded', () => {
   const autoFetchCheckbox = document.getElementById('autoFetchCheckbox');
   const resultsCountEl = document.getElementById('resultsCount');
@@ -8,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   let archiveResults = [];
   let displayAll = false; // flag for showing all results
+  let currentTabUrl = ""; // will hold the original page URL
+  let currentTabId;       // will hold the active tab's id
 
   // Toggle logs display using clickable text with symbols ▸ and ▾
   toggleLogs.addEventListener('click', () => {
@@ -25,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (debugContainer.style.display !== 'none') {
       debugContainer.innerText += message + "\n";
     }
+    console.log("[Popup] " + message);
   }
   
   // Load autoFetch setting from storage
@@ -53,7 +57,20 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   });
   
-  // Function to render the results table
+  // Get the current (original) tab URL and id to pass to the diff view.
+  browser.tabs.query({ active: true, currentWindow: true })
+    .then(tabs => {
+      if (tabs[0] && tabs[0].url) {
+        currentTabUrl = tabs[0].url;
+        currentTabId = tabs[0].id;
+        log("Current tab URL loaded: " + currentTabUrl + " with id " + currentTabId);
+      }
+    })
+    .catch(error => {
+      log("Error retrieving current tab URL: " + error.message);
+    });
+  
+  // Function to render the results table, now with a Diff column.
   function renderTable(data) {
     tableBody.innerHTML = "";
     let displayData = data;
@@ -74,26 +91,44 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = document.createElement('tr');
       if (item.ellipsis) {
         const cell = document.createElement('td');
-        cell.colSpan = 3;
+        cell.colSpan = 4;
         cell.style.textAlign = 'center';
         cell.innerText = '...';
         row.appendChild(cell);
       } else {
+        // Date cell with a link to the archived snapshot
         const dateCell = document.createElement('td');
-        // Create an anchor for the date linking to the snapshot URL
         const link = document.createElement('a');
         link.href = item.url;
         link.target = "_blank";
         link.innerText = item.date;
         dateCell.appendChild(link);
         
+        // Service cell
         const serviceCell = document.createElement('td');
         serviceCell.innerText = item.service;
+        
+        // Status cell
         const statusCell = document.createElement('td');
         statusCell.innerText = item.statuscode;
+        
+        // Diff cell with a "Show" button to open the diff view.
+        const diffCell = document.createElement('td');
+        const diffButton = document.createElement('button');
+        diffButton.innerText = "Show";
+        diffButton.className = "btn btn-sm btn-outline-primary";
+        diffButton.addEventListener('click', () => {
+          // Open diff.html in a new tab with query parameters for archived URL, original URL, and the original tab id.
+          const diffUrl = `diff.html?archivedUrl=${encodeURIComponent(item.url)}&originalUrl=${encodeURIComponent(currentTabUrl)}&tabId=${currentTabId}`;
+          browser.tabs.create({ url: diffUrl });
+          log("Opened diff view for archived URL: " + item.url);
+        });
+        diffCell.appendChild(diffButton);
+        
         row.appendChild(dateCell);
         row.appendChild(serviceCell);
         row.appendChild(statusCell);
+        row.appendChild(diffCell);
       }
       tableBody.appendChild(row);
     });
@@ -120,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateSortArrows(column, ascending);
     renderTable(archiveResults);
+    log(`Sorted results by ${column} in ${ascending ? "ascending" : "descending"} order`);
   }
   
   // Set up table header sorting with clickable headers
@@ -127,8 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let ascending = true;
     th.addEventListener('click', () => {
       const column = th.getAttribute('data-column');
-      sortResults(column, ascending);
-      ascending = !ascending;
+      if (column) {
+        sortResults(column, ascending);
+        ascending = !ascending;
+      }
     });
   });
   
@@ -141,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       archiveResults = response.results;
-      log("Received results: " + JSON.stringify(archiveResults));
+      log("Received archive results: " + JSON.stringify(archiveResults));
       // Default sort by date
       archiveResults.sort((a, b) => a.date.localeCompare(b.date));
       resultsCountEl.innerText = `Total Results Found: ${archiveResults.length}`;

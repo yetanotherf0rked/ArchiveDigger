@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
   "name": "Archive Digger",
-  "version": "1.0",
-  "description": "Checks if the current page has an entry on web.archive.org using the CDX API.",
+  "version": "1.2",
+  "description": "Checks if the current page has an entry on web.archive.org using the CDX API and provides an element-level diff view.",
   "permissions": [
     "tabs",
     "activeTab",
@@ -16,6 +16,12 @@
   "browser_action": {
     "default_icon": "icons/history.png",
     "default_popup": "popup.html"
-  }
+  },
+  "content_security_policy": "script-src 'self' https://cdnjs.cloudflare.com 'unsafe-eval'; object-src 'self'",
+  "web_accessible_resources": [
+    "diff.html",
+    "diff.js",
+    "content.js"
+  ]
 }
 
