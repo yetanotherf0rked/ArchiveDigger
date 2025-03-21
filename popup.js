@@ -9,14 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let archiveResults = [];
   let displayAll = false; // flag for showing all results
 
-  // Toggle logs display using clickable text
+  // Toggle logs display using clickable text with symbols ▸ and ▾
   toggleLogs.addEventListener('click', () => {
     if (debugContainer.style.display === 'none') {
       debugContainer.style.display = 'block';
-      toggleLogs.innerText = 'Hide Logs';
+      toggleLogs.innerText = '▾ Hide Logs';
     } else {
       debugContainer.style.display = 'none';
-      toggleLogs.innerText = 'Show Logs';
+      toggleLogs.innerText = '▸ Show Logs';
     }
   });
   
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let displayData = data;
     if (!displayAll && data.length > 10) {
       displayData = data.slice(0, 5).concat([{ ellipsis: true }], data.slice(-5));
-      resultsInfo.innerHTML = 'Displaying 5 oldest and 5 latest results. <span id="showAllLink" style="cursor:pointer; color:blue; text-decoration:underline;">Show All</span>';
+      resultsInfo.innerHTML = 'Displaying 5 oldest and 5 latest results.\n<span id="showAllLink" style="cursor:pointer; text-decoration:underline;">Show All</span>';
       const showAllLink = document.getElementById('showAllLink');
       showAllLink.addEventListener('click', () => {
         displayAll = true;

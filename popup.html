@@ -2,76 +2,78 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archive Digger</title>
+  <!-- Bootstrap 5 CSS from CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" 
+        integrity="sha384-9ndCyUa1zYl1h2K3p4bIk1Xp4N6D5UOoX1Ozv4C5JlZ5u8tjt5KyYv9KI65qnmO4" crossorigin="anonymous">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 10px;
+    /* Auto-detect dark/light mode */
+    @media (prefers-color-scheme: dark) {
+      h2, .table td {
+        text-align: center;
+      }
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+      }
+      .table {
+        color: #e0e0e0;
+      }
+      .table th, .table td {
+        border-color: #333;
+      }
+      a {
+        color: #4dabf7;
+      }
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      cursor: pointer;
-      background-color: #f2f2f2;
-      position: relative;
-    }
-    th .sort-arrow {
+    .sort-arrow {
       margin-left: 5px;
       font-size: 0.8em;
     }
-    #resultsCount {
-      margin-top: 10px;
-      font-weight: bold;
+    #resultsCount, #resultsInfo, #resultsTable tbody {
+      font-style: italic;
+      font-size: 0.9rem;
     }
-    #resultsInfo {
-      margin-top: 5px;
-    }
-    /* Logs are hidden by default, toggled via clickable text */
-    #debugContainer {
-      margin-top: 10px;
-      font-size: 0.8em;
-      color: red;
-      white-space: pre-wrap;
-      display: none;
-    }
-    /* Simple clickable text for toggling logs */
     #toggleLogs {
-      margin-top: 10px;
       cursor: pointer;
-      color: blue;
-      text-decoration: underline;
+      font-style: italic;
+      font-size: 0.85rem;
+      text-align: left;
     }
   </style>
 </head>
-<body>
-  <h2>Archive Digger</h2>
-  <label>
-    <input type="checkbox" id="autoFetchCheckbox" checked>
-    Automatic Archive Fetching
-  </label>
-  <br/>
-  <div id="resultsCount"></div>
-  <div id="resultsInfo"></div>
-  <table id="resultsTable">
-    <thead>
-      <tr>
-        <th data-column="date">Date <span class="sort-arrow">⇅</span></th>
-        <th data-column="service">Service <span class="sort-arrow">⇅</span></th>
-        <th data-column="statuscode">Status Code <span class="sort-arrow">⇅</span></th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <div id="toggleLogs">Show Logs</div>
-  <div id="debugContainer"></div>
+<body class="p-3">
+  <div class="container">
+    <!-- Title centered -->
+    <h2 class="text-center">Archive Digger</h2>
+    <!-- Separator between title and Auto Fetch setting -->
+    <hr>
+    <!-- Auto Fetch setting centered -->
+    <div class="form-check text-center mb-3">
+      <input type="checkbox" class="form-check-input" id="autoFetchCheckbox" checked>
+      <label class="form-check-label" for="autoFetchCheckbox">Automatic Archive Fetching</label>
+    </div>
+    <!-- Separator between Auto Fetch setting and Results -->
+    <hr>
+    <div id="resultsCount" class="text-center mb-2"></div>
+    <div id="resultsInfo" class="text-center mb-2"></div>
+    <div class="table-responsive">
+      <table id="resultsTable" class="table table-striped table-hover text-center">
+        <thead>
+          <tr>
+            <th data-column="date">Date<span class="sort-arrow">⇅</span></th>
+            <th data-column="service">Service<span class="sort-arrow">⇅</span></th>
+            <th data-column="statuscode">Status<span class="sort-arrow">⇅</span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <!-- Toggle Logs as simple clickable text with symbols -->
+    <div id="toggleLogs">▸ Show Logs</div>
+    <pre id="debugContainer" class="mt-2" style="display: none; font-size: 0.8em; color: red;"></pre>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

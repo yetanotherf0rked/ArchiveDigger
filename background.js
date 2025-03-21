@@ -5,7 +5,8 @@ let archiveResults = {};
 
 // Update badge text for the given tab
 function updateBadge(tabId, resultsCount) {
-  browser.browserAction.setBadgeText({ tabId: tabId, text: resultsCount.toString() });
+  const text = resultsCount > 100 ? "99+" : resultsCount.toString();
+  browser.browserAction.setBadgeText({ tabId: tabId, text: text });
 }
 
 // Fetch from web.archive.org using the CDX API
@@ -81,4 +82,18 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ status: "ok" });
   }
 });
+
+// Update the browser action icon based on dark/light mode
+function updateIcon() {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    browser.browserAction.setIcon({ path: "icons/history_white.png" });
+  } else {
+    browser.browserAction.setIcon({ path: "icons/history.png" });
+  }
+}
+
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateIcon);
+}
+updateIcon();
 
