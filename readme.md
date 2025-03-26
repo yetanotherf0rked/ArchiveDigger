@@ -1,6 +1,10 @@
-# Archive Digger
+# Archive Digger (WIP)
 
 Archive Digger is a Firefox extension that checks for archived versions of the current page using the web.archive.org CDX API. It automatically fetches archive entries and displays a side-by-side diff view between the archived and current versions.
+
+![image](https://github.com/user-attachments/assets/542ff822-1b59-41b0-b2b4-b5654f9567cb)
+![image](https://github.com/user-attachments/assets/58fe6f66-ea4f-43a5-8cc1-4d05e0615a74)
+![image](https://github.com/user-attachments/assets/d98e8c11-c32f-4886-8353-6d11faff7b46)
 
 ## Installation
 
